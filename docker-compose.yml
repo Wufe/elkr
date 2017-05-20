@@ -1,0 +1,86 @@
+version: '2'
+
+services:
+
+  elasticsearch:
+    build: elasticsearch/
+    container_name: es
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      # disable X-Pack
+      # see https://www.elastic.co/guide/en/x-pack/current/xpack-settings.html
+      #     https://www.elastic.co/guide/en/x-pack/current/installing-xpack.html#xpack-enabling
+      xpack.security.enabled: "false"
+      xpack.monitoring.enabled: "false"
+      xpack.graph.enabled: "false"
+      xpack.watcher.enabled: "false"
+      cluster.name: "docker-cluster"
+    networks:
+      - elkr
+
+  elasticsearch_slave:
+    build: elasticsearch/
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      # disable X-Pack
+      # see https://www.elastic.co/guide/en/x-pack/current/xpack-settings.html
+      #     https://www.elastic.co/guide/en/x-pack/current/installing-xpack.html#xpack-enabling
+      xpack.security.enabled: "false"
+      xpack.monitoring.enabled: "false"
+      xpack.graph.enabled: "false"
+      xpack.watcher.enabled: "false"
+      cluster.name: "docker-cluster"
+      discovery.zen.ping.unicast.hosts: "elasticsearch"
+    networks:
+      - elkr
+
+  logstash:
+    build: logstash/
+    volumes:
+      - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+    ports:
+      - "5001:5000"
+    environment:
+      LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+    networks:
+      - elkr
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    build: kibana/
+    volumes:
+      - ./kibana/config/:/usr/share/kibana/config
+    ports:
+      - "5601:5601"
+    networks:
+      - elkr
+    depends_on:
+      - elasticsearch
+
+  redis:
+    image: kesshin/redis-node:latest
+    container_name: redis
+    expose:
+      - "6379"
+    ports:
+      - "6379:6379"
+    networks:
+      - elkr
+
+  redis_slave:
+    image: kesshin/redis-node:latest
+    volumes:
+      - ./redis/redis.conf:/etc/redis/redis.conf
+    links:
+      - redis:master
+    networks:
+      - elkr
+
+networks:
+  elkr:
+    driver: bridge

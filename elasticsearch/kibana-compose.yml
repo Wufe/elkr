@@ -1,0 +1,14 @@
+version: '2'
+services:
+  kibana:
+      image: docker.elastic.co/kibana/kibana:5.4.0
+      volumes:
+        - ./kibana.yml:/usr/share/kibana/config/kibana.yml
+      ports:
+        - 5600:5600
+      networks:
+        - esnet
+
+networks:
+  esnet:
+    driver: bridge
